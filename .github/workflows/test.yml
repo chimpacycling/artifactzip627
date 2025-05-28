@@ -37,7 +37,7 @@ jobs:
       run: rm -rf ${{ runner.tool_cache }}/actions/upload-artifact
 
     - name: Upload partial session data as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v3.0.0  # Switched to a stable older version
       with:
         name: partial_session_data
         path: partial_sessions.zip
