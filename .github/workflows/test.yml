@@ -1,4 +1,4 @@
-name: Artifact Workflow
+name: Upload Artifacts Workflow
 
 on:
   push:
@@ -12,26 +12,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Create Artifact File
-        run: echo "Hello, Artifact!" > artifact.txt
+      - name: Create Build Files
+        run: |
+          mkdir -p build
+          echo "Hello, Artifact!" > build/output.txt
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: my-artifact
-          path: artifact.txt
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Download Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: my-artifact
-
-      - name: Display Artifact Content
-        run: cat my-artifact/artifact.txt
+          path: build/output.txt
+          retention-days: 7
+          compression-level: 6
+          include-hidden-files: false
