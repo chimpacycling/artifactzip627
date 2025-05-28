@@ -12,27 +12,24 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v2  # Keep this as v2 for compatibility
 
     - name: Pull Docker image
-      run: docker pull 
+      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one  # Add your image name
 
     - name: Run Initial Docker Processes
       run: |
         docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
-        # Simulate initial processes
-        sleep 300 # Sleep for 5 minutes
-        # Ensure proper permissions and zip the sessions folder
+        sleep 300
         docker exec session_container bash -c "chmod -R 777 /app/sessions"
-        sleep 10 # Give time for permissions to take effect
-        # Zip the sessions folder, ignoring unreadable files, and ensure workflow succeeds
+        sleep 10
         docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
 
     - name: Copy Partial Zip to Runner
       run: docker cp session_container:/app/partial_sessions.zip partial_sessions.zip
 
     - name: Upload partial session data as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v2  # Changed from v3 to v2
       with:
         name: partial_session_data
         path: partial_sessions.zip
