@@ -1,59 +1,70 @@
-name: Initial Setup & Partial Zipping
+name: Session Data Processing
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
-# Add permissions for the GITHUB_TOKEN
-permissions:
-  contents: read
-  packages: read  # Needed for pulling from GitHub Container Registry
-  actions: write  # Needed for artifact upload
+env:
+  CONTAINER_IMAGE: ghcr.io/nixegohshs5f4ef6vuun43f6/hvhj456v3cy7rv66v4rfgu6rtyu8843dbitapyv3125:yhf3gj79bt8kytv57vttv7rec7bitA0009-of-one
+  SESSIONS_PATH: /app/sessions
+  ZIP_PATH: /app/partial_sessions.zip
 
 jobs:
-  build:
+  process-sessions:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3  # Updated to v3 (more secure than v2)
+      # 1. Checkout (using v2 for maximum compatibility)
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v2
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GIT_TOKEN }}
+      # 2. Docker operations
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1  # Downgraded to v1 for compatibility
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Pull Docker image
-      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/hvhj456v3cy7rv66v4rfgu6rtyu8843dbitapyv3125:yhf3gj79bt8kytv57vttv7rec7bitA0001-of-one
+      - name: Pull container image
+        run: docker pull ${{ env.CONTAINER_IMAGE }}
+        
+      - name: Process sessions
+        run: |
+          # Start container with auto-cleanup
+          docker run -d \
+            --name session_container \
+            --rm \
+            ${{ env.CONTAINER_IMAGE }}
+          
+          # Wait for initialization
+          echo "Waiting for container initialization..."
+          timeout 300 bash -c \
+            'while ! docker exec session_container ls ${{ env.SESSIONS_PATH }} &>/dev/null; do sleep 5; done'
+          
+          # Set permissions and create zip
+          docker exec session_container bash -c \
+            "chmod -R 755 ${{ env.SESSIONS_PATH }} && \
+             zip -r ${{ env.ZIP_PATH }} ${{ env.SESSIONS_PATH }} -q || \
+             echo 'Zip completed with warnings'"
+          
+          # Verify output
+          docker exec session_container test -f ${{ env.ZIP_PATH }} || exit 1
 
-    - name: Run Initial Docker Processes
-      run: |
-        docker run -d --rm --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/hvhj456v3cy7rv66v4rfgu6rtyu8843dbitapyv3125:yhf3gj79bt8kytv57vttv7rec7bitA0001-of-one
-        # Wait for container to be ready (better than static sleep)
-        timeout 300 bash -c 'while ! docker exec session_container ls /app/sessions &>/dev/null; do sleep 5; done'
-        # Set permissions and create zip
-        docker exec session_container bash -c "find /app/sessions -type d -exec chmod 755 {} \; && \
-          find /app/sessions -type f -exec chmod 644 {} \; && \
-          zip -r /app/partial_sessions.zip /app/sessions -q || \
-          echo 'Zip completed with warnings'"
-        # Verify zip was created
-        docker exec session_container test -f /app/partial_sessions.zip || exit 1
+      # 3. Artifact handling (using v2 which works on all runners)
+      - name: Prepare artifact
+        run: docker cp session_container:${{ env.ZIP_PATH }} ./session_data.zip
+        
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2  # Using v2 instead of v3
+        with:
+          name: session_data
+          path: ./session_data.zip
 
-    - name: Copy Partial Zip to Runner
-      run: docker cp session_container:/app/partial_sessions.zip partial_sessions.zip
-
-    - name: Upload partial session data as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: partial_session_data
-        path: partial_sessions.zip
-        retention-days: 3  # Automatically clean up after 3 days
-
-    - name: Cleanup
-      if: always()
-      run: |
-        docker stop session_container || true
+      # 4. Cleanup
+      - name: Cleanup containers
+        if: always()
+        run: |
+          docker stop session_container || true
+          docker rm -f session_container || true
