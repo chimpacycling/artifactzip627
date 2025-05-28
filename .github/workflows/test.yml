@@ -1,43 +1,37 @@
-name: Initial Setup & Partial Zipping
-
-permissions:
-  contents: read
-  actions: read
-  packages: read  # Grants access to GitHub Packages if needed
+name: Artifact Workflow
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Pull Docker image
-      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
+      - name: Create Artifact File
+        run: echo "Hello, Artifact!" > artifact.txt
 
-    - name: Run Initial Docker Processes
-      run: |
-        docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
-        sleep 300
-        docker exec session_container bash -c "chmod -R 777 /app/sessions"
-        sleep 10
-        docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: my-artifact
+          path: artifact.txt
 
-    - name: Copy Partial Zip to Runner
-      run: docker cp session_container:/app/partial_sessions.zip partial_sessions.zip
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Clear Actions Cache
-      run: rm -rf ${{ runner.tool_cache }}/actions/upload-artifact
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: my-artifact
 
-    - name: Upload partial session data as artifact
-      uses: actions/upload-artifact@v3.0.0  # Switched to a stable older version
-      with:
-        name: partial_session_data
-        path: partial_sessions.zip
+      - name: Display Artifact Content
+        run: cat my-artifact/artifact.txt
