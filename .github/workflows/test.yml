@@ -6,30 +6,54 @@ on:
       - main
   workflow_dispatch:
 
+# Add permissions for the GITHUB_TOKEN
+permissions:
+  contents: read
+  packages: read  # Needed for pulling from GitHub Container Registry
+  actions: write  # Needed for artifact upload
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4  # Keep this as v2 for compatibility
+      uses: actions/checkout@v3  # Updated to v3 (more secure than v2)
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GIT_TOKEN }}
 
     - name: Pull Docker image
-      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one  # Add your image name
+      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/hvhj456v3cy7rv66v4rfgu6rtyu8843dbitapyv3125:yhf3gj79bt8kytv57vttv7rec7bitA0001-of-one
 
     - name: Run Initial Docker Processes
       run: |
-        docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitapyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitA0009-of-one
-        sleep 300
-        docker exec session_container bash -c "chmod -R 777 /app/sessions"
-        sleep 10
-        docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
+        docker run -d --rm --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/hvhj456v3cy7rv66v4rfgu6rtyu8843dbitapyv3125:yhf3gj79bt8kytv57vttv7rec7bitA0001-of-one
+        # Wait for container to be ready (better than static sleep)
+        timeout 300 bash -c 'while ! docker exec session_container ls /app/sessions &>/dev/null; do sleep 5; done'
+        # Set permissions and create zip
+        docker exec session_container bash -c "find /app/sessions -type d -exec chmod 755 {} \; && \
+          find /app/sessions -type f -exec chmod 644 {} \; && \
+          zip -r /app/partial_sessions.zip /app/sessions -q || \
+          echo 'Zip completed with warnings'"
+        # Verify zip was created
+        docker exec session_container test -f /app/partial_sessions.zip || exit 1
 
     - name: Copy Partial Zip to Runner
       run: docker cp session_container:/app/partial_sessions.zip partial_sessions.zip
 
     - name: Upload partial session data as artifact
-      uses: actions/upload-artifact@v3  # Changed from v3 to v2
+      uses: actions/upload-artifact@v3
       with:
         name: partial_session_data
         path: partial_sessions.zip
+        retention-days: 3  # Automatically clean up after 3 days
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker stop session_container || true
